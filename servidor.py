@@ -14,6 +14,10 @@ logged_users = {}
 # Dicionário de usuários registrados
 users = {}
 
+# Dicionário de semáforos para as tarefas
+task_semaphores = {}
+
+
 def handle_client(client_socket, client_address):
     while True:
         # Recebe dados do cliente
@@ -32,8 +36,9 @@ def handle_client(client_socket, client_address):
     # Encerra a conexão com o cliente
     client_socket.close()
 
+
 def process_message(message, client_address):
-    global tasks, logged_users, users
+    global tasks, logged_users, users, task_semaphores
 
     message = message.upper()
 
@@ -51,6 +56,10 @@ def process_message(message, client_address):
 
         if task_name in tasks:
             return 'ERRO-801\n'
+
+        # Cria um semáforo para a nova tarefa
+        task_semaphore = threading.Semaphore(1)
+        task_semaphores[task_name] = task_semaphore
 
         tasks[task_name] = '200'
         return 'PASS-200\n'
@@ -70,17 +79,26 @@ def process_message(message, client_address):
         if task_name not in tasks:
             return f'"{task_name}": ERRO-404\n'
 
-        current_status = tasks[task_name]
-        if current_status == '200':
-            # Tarefa está no estado "INICIADA"
-            return f'"{task_name}": PASS-201\n'
-        elif current_status == '201':
-            # Tarefa está no estado "PAUSADA"
-            tasks[task_name] = '200'
-            return f'"{task_name}": PASS-201\n'
-        else:
-            # Tarefa não está em estado "INICIADA" ou "PAUSADA"
-            return 'ERRO-804\n'
+        task_semaphore = task_semaphores[task_name]
+
+        # Adquire o semáforo (bloqueia outros usuários)
+        task_semaphore.acquire()
+
+        try:
+            current_status = tasks[task_name]
+            if current_status == '200':
+                # Tarefa está no estado "INICIADA"
+                return f'"{task_name}": PASS-201\n'
+            elif current_status == '201':
+                # Tarefa está no estado "PAUSADA"
+                tasks[task_name] = '200'
+                return f'"{task_name}": PASS-201\n'
+            else:
+                # Tarefa não está em estado "INICIADA" ou "PAUSADA"
+                return 'ERRO-804\n'
+        finally:
+            # Libera o semáforo (permite que outros usuários acessem)
+            task_semaphore.release()
 
     # Comando: PAUSE_TASK
     if message.startswith('PAUSE'):
@@ -97,14 +115,23 @@ def process_message(message, client_address):
         if task_name not in tasks:
             return f'"{task_name}": ERRO-404\n'
 
-        current_status = tasks[task_name]
-        if current_status == '200':
-            # Tarefa está no estado "INICIADA"
-            tasks[task_name] = '201'
-            return f'"{task_name}": PASS-202\n'
-        else:
-            # Tarefa não está em estado "INICIADA"
-            return 'ERRO-804\n'
+        task_semaphore = task_semaphores[task_name]
+
+        # Adquire o semáforo (bloqueia outros usuários)
+        task_semaphore.acquire()
+
+        try:
+            current_status = tasks[task_name]
+            if current_status == '200':
+                # Tarefa está no estado "INICIADA"
+                tasks[task_name] = '201'
+                return f'"{task_name}": PASS-202\n'
+            else:
+                # Tarefa não está em estado "INICIADA"
+                return 'ERRO-804\n'
+        finally:
+            # Libera o semáforo (permite que outros usuários acessem)
+            task_semaphore.release()
 
     # Comando: FINISH_TASK
     if message.startswith('FINISH'):
@@ -121,14 +148,23 @@ def process_message(message, client_address):
         if task_name not in tasks:
             return f'"{task_name}": ERRO-404\n'
 
-        current_status = tasks[task_name]
-        if current_status == '200':
-            # Tarefa está no estado "INICIADA"
-            tasks[task_name] = '203'
-            return f'"{task_name}": PASS-203\n'
-        else:
-            # Tarefa não está em estado "INICIADA"
-            return 'ERRO-804\n'
+        task_semaphore = task_semaphores[task_name]
+
+        # Adquire o semáforo (bloqueia outros usuários)
+        task_semaphore.acquire()
+
+        try:
+            current_status = tasks[task_name]
+            if current_status == '200':
+                # Tarefa está no estado "INICIADA"
+                tasks[task_name] = '203'
+                return f'"{task_name}": PASS-203\n'
+            else:
+                # Tarefa não está em estado "INICIADA"
+                return 'ERRO-804\n'
+        finally:
+            # Libera o semáforo (permite que outros usuários acessem)
+            task_semaphore.release()
 
     # Comando: LIST_TASKS
     if message == 'LIST':
@@ -184,6 +220,7 @@ def process_message(message, client_address):
     # Comando desconhecido
     return 'ERRO-999\n'
 
+
 def main():
     # Cria o socket TCP/IP
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -210,6 +247,7 @@ def main():
     finally:
         # Encerra o socket do servidor
         server_socket.close()
+
 
 if __name__ == '__main__':
     main()
