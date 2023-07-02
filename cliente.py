@@ -2,10 +2,13 @@ import socket
 # Configurações do cliente
 HOST = '127.0.0.1'  # Endereço IP do servidor
 PORT = 12345       # Porta de conexão do servidor
+
 # Criação do socket TCP
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
 # Conecta-se ao servidor
 client_socket.connect((HOST, PORT))
+
 while True:
     # Solicita ao usuário para digitar um comando
     command = input('Digite um comando: ')
@@ -19,5 +22,6 @@ while True:
     # Processa a resposta recebida
     received_message = data.decode()
     print('Resposta do servidor:', received_message,)
+    
 # Fecha o socket do cliente
 client_socket.close()
