@@ -1,6 +1,27 @@
 import sys
 import socket
 
+# Dicionário de tradução de mensagens
+message_translation = {
+    'PASS-200': 'Tarefa adicionada com sucesso.',
+    'PASS-201': 'Tarefa iniciada com sucesso.',
+    'PASS-202': 'Tarefa pausada com sucesso.',
+    'PASS-203': 'Tarefa finalizada com sucesso.',
+    'PASS-213': 'Usuário registrado com sucesso.',
+    'PASS-214': 'Login realizado com sucesso.',
+    'PASS-215': 'Logout realizado com sucesso.',
+    'ERRO-404': 'Tarefa não encontrada.',
+    'ERRO-501': 'Nenhuma tarefa encontrada.',
+    'ERRO-700': 'Você não está logado.',
+    'ERRO-701': 'Comando inválido.',
+    'ERRO-702': 'Argumentos inválidos.',
+    'ERRO-703': 'Usuário já existe.',
+    'ERRO-704': 'Credenciais inválidas.',
+    'ERRO-801': 'Tarefa já existe.',
+    'ERRO-804': 'Operação inválida.',
+    'ERRO-999': 'Comando desconhecido.'
+}
+
 # Verifica se foram fornecidos argumentos suficientes
 if len(sys.argv) < 3:
     print("Uso: python3 cliente.py <endereço IP> <porta>")
@@ -31,8 +52,9 @@ while True:
     data = client_socket.recv(1024)
 
     # Processa a resposta recebida
-    received_message = data.decode()
-    print('Resposta do servidor:\n', received_message)
+    received_message = data.decode().strip()
+    translated_message = message_translation.get(received_message, 'Resposta do servidor: ' + received_message)
+    print(translated_message)
 
 # Fecha o socket do cliente
 client_socket.close()

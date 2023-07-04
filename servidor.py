@@ -3,7 +3,7 @@ import threading
 
 # Configurações do servidor
 HOST = '0.0.0.0'  # Endereço IP do servidor
-PORT = 12345       # Porta de escuta do servidor
+PORT = 12345  # Porta de escuta do servidor
 
 # Dicionário de tarefas
 tasks = {}
@@ -17,6 +17,9 @@ users = {}
 # Dicionário de semáforos para as tarefas
 task_semaphores = {}
 
+# Mutex para garantir exclusão mútua no acesso aos dicionários de tarefas, usuários logados e usuários registrados
+mutex = threading.Lock()
+
 
 def handle_client(client_socket, client_address):
     while True:
@@ -28,7 +31,7 @@ def handle_client(client_socket, client_address):
             break
         # Processa os dados recebidos
         received_message = data.decode().strip()
-        print('RECEIVED MESSAGE: ', received_message)
+        print('RECEIVED MESSAGE:', received_message)
         # Trata a mensagem recebida
         response_message = process_message(received_message, client_address)
         # Envia a resposta ao cliente
@@ -38,7 +41,7 @@ def handle_client(client_socket, client_address):
 
 
 def process_message(message, client_address):
-    global tasks, logged_users, users, task_semaphores
+    global tasks, logged_users, users, task_semaphores, mutex
 
     message = message.upper()
 
@@ -54,14 +57,15 @@ def process_message(message, client_address):
 
         task_name = split_message[1]
 
-        if task_name in tasks:
-            return 'ERRO-801\n'
+        with mutex:
+            if task_name in tasks:
+                return 'ERRO-801\n'
 
-        # Cria um semáforo para a nova tarefa
-        task_semaphore = threading.Semaphore(1)
-        task_semaphores[task_name] = task_semaphore
+            # Cria um semáforo para a nova tarefa
+            task_semaphore = threading.Semaphore(1)
+            task_semaphores[task_name] = task_semaphore
 
-        tasks[task_name] = '200'
+            tasks[task_name] = '200'
         return 'PASS-200\n'
 
     # Comando: START_TASK
@@ -76,10 +80,11 @@ def process_message(message, client_address):
 
         task_name = split_message[1]
 
-        if task_name not in tasks:
-            return f'"{task_name}": ERRO-404\n'
+        with mutex:
+            if task_name not in tasks:
+                return 'ERRO-404\n'
 
-        task_semaphore = task_semaphores[task_name]
+            task_semaphore = task_semaphores[task_name]
 
         # Adquire o semáforo (bloqueia outros usuários)
         task_semaphore.acquire()
@@ -88,11 +93,11 @@ def process_message(message, client_address):
             current_status = tasks[task_name]
             if current_status == '200':
                 # Tarefa está no estado "INICIADA"
-                return f'"{task_name}": PASS-201\n'
+                return 'PASS-201\n'
             elif current_status == '201':
                 # Tarefa está no estado "PAUSADA"
                 tasks[task_name] = '200'
-                return f'"{task_name}": PASS-201\n'
+                return 'PASS-201\n'
             else:
                 # Tarefa não está em estado "INICIADA" ou "PAUSADA"
                 return 'ERRO-804\n'
@@ -112,10 +117,11 @@ def process_message(message, client_address):
 
         task_name = split_message[1]
 
-        if task_name not in tasks:
-            return f'"{task_name}": ERRO-404\n'
+        with mutex:
+            if task_name not in tasks:
+                return 'ERRO-404\n'
 
-        task_semaphore = task_semaphores[task_name]
+            task_semaphore = task_semaphores[task_name]
 
         # Adquire o semáforo (bloqueia outros usuários)
         task_semaphore.acquire()
@@ -125,7 +131,7 @@ def process_message(message, client_address):
             if current_status == '200':
                 # Tarefa está no estado "INICIADA"
                 tasks[task_name] = '201'
-                return f'"{task_name}": PASS-202\n'
+                return 'PASS-202\n'
             else:
                 # Tarefa não está em estado "INICIADA"
                 return 'ERRO-804\n'
@@ -145,10 +151,11 @@ def process_message(message, client_address):
 
         task_name = split_message[1]
 
-        if task_name not in tasks:
-            return f'"{task_name}": ERRO-404\n'
+        with mutex:
+            if task_name not in tasks:
+                return 'ERRO-404\n'
 
-        task_semaphore = task_semaphores[task_name]
+            task_semaphore = task_semaphores[task_name]
 
         # Adquire o semáforo (bloqueia outros usuários)
         task_semaphore.acquire()
@@ -158,7 +165,7 @@ def process_message(message, client_address):
             if current_status == '200':
                 # Tarefa está no estado "INICIADA"
                 tasks[task_name] = '203'
-                return f'"{task_name}": PASS-203\n'
+                return 'PASS-203\n'
             else:
                 # Tarefa não está em estado "INICIADA"
                 return 'ERRO-804\n'
@@ -171,12 +178,13 @@ def process_message(message, client_address):
         if client_address not in logged_users:
             return 'ERRO-700\n'
 
-        task_list = ''
-        if tasks:
-            for task, status in tasks.items():
-                task_list += f'{task}: {status}\n'
-        else:
-            task_list = 'ERRO-501\n'
+        with mutex:
+            task_list = ''
+            if tasks:
+                for task, status in tasks.items():
+                    task_list += f'{task}: {status}\n'
+            else:
+                task_list = 'ERRO-501\n'
         return task_list
 
     # Comando: REGISTER_USER
@@ -188,10 +196,11 @@ def process_message(message, client_address):
         username = split_message[1]
         password = split_message[2]
 
-        if username in users:
-            return 'ERRO-703\n'
+        with mutex:
+            if username in users:
+                return 'ERRO-703\n'
 
-        users[username] = password
+            users[username] = password
         return 'PASS-213\n'
 
     # Comando: LOGIN
@@ -203,14 +212,15 @@ def process_message(message, client_address):
         username = split_message[1]
         password = split_message[2]
 
-        if username in users and users[username] == password:
-            logged_users[client_address] = username
-            return 'PASS-214\n'
+        with mutex:
+            if username in users and users[username] == password:
+                logged_users[client_address] = username
+                return 'PASS-214\n'
 
         return 'ERRO-704\n'
 
     # Comando: LOGOUT
-    if message == 'OUT':
+    if message == 'LOGOUT':
         if client_address in logged_users:
             del logged_users[client_address]
             return 'PASS-215\n'
@@ -218,30 +228,29 @@ def process_message(message, client_address):
             return 'ERRO-700\n'
 
     # Comando desconhecido
-    return 'ERRO-999\n'
+    return 'ERRO-500\n'
 
 
 def main():
-    # Cria o socket TCP/IP
+    # Cria o socket do servidor
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-    # Define a opção de reutilização do endereço
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-    # Vincula o socket à porta e ao endereço definidos
+    # Associa o socket a um endereço e porta
     server_socket.bind((HOST, PORT))
 
-    # Define o limite máximo de conexões pendentes
+    # Inicia o modo de escuta do servidor
     server_socket.listen(5)
+
     print('SERVER STARTED')
 
     try:
         while True:
-            # Aguarda a conexão de um cliente
+            # Aguarda uma conexão
             client_socket, client_address = server_socket.accept()
             print('CLIENT CONNECTED:', client_address)
 
-            # Cria uma thread para tratar as mensagens do cliente
+            # Inicia uma nova thread para lidar com o cliente
             client_thread = threading.Thread(target=handle_client, args=(client_socket, client_address))
             client_thread.start()
     finally:
