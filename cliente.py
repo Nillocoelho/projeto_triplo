@@ -12,6 +12,7 @@ message_translation = {
     'PASS-215': 'Logout realizado com sucesso.',
     'ERRO-404': 'Tarefa não encontrada.',
     'ERRO-501': 'Nenhuma tarefa encontrada.',
+    'ERRO-500': 'Comando desconhecido',
     'ERRO-700': 'Você não está logado.',
     'ERRO-701': 'Comando inválido.',
     'ERRO-702': 'Argumentos inválidos.',

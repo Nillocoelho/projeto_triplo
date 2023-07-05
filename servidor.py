@@ -220,7 +220,7 @@ def process_message(message, client_address):
         return 'ERRO-704\n'
 
     # Comando: LOGOUT
-    if message == 'LOGOUT':
+    if message == 'OUT':
         if client_address in logged_users:
             del logged_users[client_address]
             return 'PASS-215\n'
