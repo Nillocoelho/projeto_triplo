@@ -23,14 +23,13 @@ message_translation = {
     'ERRO-999': 'Comando desconhecido.'
 }
 
-# Verifica se foram fornecidos argumentos suficientes
-if len(sys.argv) < 3:
-    print("Uso: python3 cliente.py <endereço IP> <porta>")
-    sys.exit(1)
-
-# Obtém os argumentos da linha de comando
-HOST = sys.argv[1]
-PORT = int(sys.argv[2])
+# Obtém os argumentos da linha de comando ou usa valores padrão
+if len(sys.argv) >= 3:
+    HOST = sys.argv[1]
+    PORT = int(sys.argv[2])
+else:
+    HOST = '127.0.0.1'  # Valor padrão para o endereço IP
+    PORT = 12345  # Valor padrão para a porta
 
 # Criação do socket TCP
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

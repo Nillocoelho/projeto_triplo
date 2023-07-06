@@ -248,7 +248,7 @@ def main():
         while True:
             # Aguarda uma conexão
             client_socket, client_address = server_socket.accept()
-            print('CLIENT CONNECTED:', client_address)
+            print('CLIENT CONNECTED: ', client_address)
 
             # Inicia uma nova thread para lidar com o cliente
             client_thread = threading.Thread(target=handle_client, args=(client_socket, client_address))
