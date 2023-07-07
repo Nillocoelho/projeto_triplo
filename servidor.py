@@ -65,7 +65,7 @@ def process_message(message, client_address):
             # Cria um semáforo para a nova tarefa
             task_semaphore = threading.Semaphore(1)
             task_semaphores[task_name] = task_semaphore
-
+            # Tarefa no statu de aguardo, esperando novas instruções
             tasks[task_name] = '200'
         return 'PASS-200\n'
 
@@ -90,15 +90,17 @@ def process_message(message, client_address):
         # Adquire o semáforo (bloqueia outros usuários)
         task_semaphore.acquire()
 
+        # Analiza o estado atual de uma mensagem
         try:
             current_status = tasks[task_name]
             if current_status == '200':  # Aguardando
                 tasks[task_name] = '201'  # Iniciada
                 return 'PASS-201\n'
-            elif current_status == '202':  # Iniciada
-                tasks[task_name] = '201'  # Aguardando
+            elif current_status == '202':  # Pausada
+                tasks[task_name] = '201'  # Iniciada
                 return 'PASS-201\n'
             else:
+                # Tarefa esta num parametro que não pode prosseguir para atribuição desejada
                 return 'ERRO-804\n'
         finally:
             # Libera o semáforo (permite que outros usuários acessem)
@@ -125,6 +127,7 @@ def process_message(message, client_address):
         # Adquire o semáforo (bloqueia outros usuários)
         task_semaphore.acquire()
 
+        # Analiza o estado atual de uma mensagem
         try:
             current_status = tasks[task_name]
             if current_status == '200':  # Aguardando
@@ -159,6 +162,7 @@ def process_message(message, client_address):
         # Adquire o semáforo (bloqueia outros usuários)
         task_semaphore.acquire()
 
+        # Analiza o estado atual de uma mensagem
         try:
             current_status = tasks[task_name]
             if current_status != '201':  # Se estiver em aguardo ou após pausada, não pode finalizar
@@ -193,14 +197,15 @@ def process_message(message, client_address):
         split_message = message.split(' ')
         if len(split_message) < 3:
             return 'ERRO-702\n'
-
+        # Define que Username é o segundo parametro passado e o password é o terceiro
         username = split_message[1]
         password = split_message[2]
 
+        # Garante o acesso unico a região crítica, deixando um acesso por vez
         with mutex:
             if username in users:
                 return 'ERRO-703\n'
-
+            # Passa o correspondente de usuário e sua senha
             users[username] = password
         return 'PASS-213\n'
 
@@ -209,7 +214,7 @@ def process_message(message, client_address):
         split_message = message.split(' ')
         if len(split_message) < 3:
             return 'ERRO-702\n'
-
+        # Define que Username é o segundo parametro passado e o password é o terceiro
         username = split_message[1]
         password = split_message[2]
         # Garante o acesso unico a região crítica, deixando um acesso por vez
@@ -225,6 +230,7 @@ def process_message(message, client_address):
         if client_address in logged_users:
             del logged_users[client_address]
             return 'PASS-215\n'
+        # Caso o usuário já esteja deslogado
         else:
             return 'ERRO-700\n'
 
