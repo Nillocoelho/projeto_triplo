@@ -161,8 +161,9 @@ def process_message(message, client_address):
 
         try:
             current_status = tasks[task_name]
-            if current_status == '202':  # Após pausada, não pode finalizar
+            if current_status != '201':  # Se estiver em aguardo ou após pausada, não pode finalizar
                 return 'ERRO-804\n'
+            #Se iniciada, pode finalizar
             else:
                 tasks[task_name] = '203'  # Finalizada
                 return 'PASS-203\n'
@@ -181,8 +182,10 @@ def process_message(message, client_address):
             if tasks:
                 for task, status in tasks.items():
                     task_list += f'{task}: {status}\n'
+            # Se a lista estiver vazia, retorne erro:
             else:
                 task_list = 'ERRO-501\n'
+        # Retorna a lista de tarefas
         return task_list
 
     # Comando que registra o usuário
