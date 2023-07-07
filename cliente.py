@@ -27,6 +27,7 @@ message_translation = {
 if len(sys.argv) >= 3:
     HOST = sys.argv[1]
     PORT = int(sys.argv[2])
+# Se o usuário não definir HOST e porta, utiliza os metodos padrões abaixo:
 else:
     HOST = '127.0.0.1'  # Valor padrão para o endereço IP
     PORT = 12345  # Valor padrão para a porta
@@ -53,6 +54,7 @@ while True:
 
     # Processa a resposta recebida
     received_message = data.decode().strip()
+    # Retorna a tradução da resposta enviada pelo servidor
     translated_message = message_translation.get(received_message, 'Resposta do servidor: ' + received_message)
     print(translated_message)
 

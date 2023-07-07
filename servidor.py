@@ -20,7 +20,7 @@ task_semaphores = {}
 # Mutex para garantir exclusão mútua no acesso aos dicionários de tarefas, usuários logados e usuários registrados
 mutex = threading.Lock()
 
-
+#Função encarregada de lidar com a comunicação entre cliente e servidor
 def handle_client(client_socket, client_address):
     while True:
         # Recebe dados do cliente
@@ -45,18 +45,19 @@ def process_message(message, client_address):
 
     message = message.upper()
 
-    # Comando: ADD_TASK
+    # Comando adicionar tarefa
     if message.startswith('SET'):
         # Verifica se o cliente está logado
         if client_address not in logged_users:
             return 'ERRO-700\n'
 
+        # Verifica o tamanho da mensagem, retornando erro caso a mensagem seja menor que 2
         split_message = message.split(' ')
         if len(split_message) < 2:
             return 'ERRO-701\n'
 
         task_name = split_message[1]
-
+        # Garante o acesso unico a região crítica, deixando um acesso por vez
         with mutex:
             if task_name in tasks:
                 return 'ERRO-801\n'
@@ -68,22 +69,22 @@ def process_message(message, client_address):
             tasks[task_name] = '200'
         return 'PASS-200\n'
 
-    # Comando: START_TASK
+    # Comando para iniciar uma task
     if message.startswith('START'):
         # Verifica se o cliente está logado
         if client_address not in logged_users:
             return 'ERRO-700\n'
-
+        # Verifica o tamanho da mensagem, retornando erro caso a mensagem seja menor que 2
         split_message = message.split(' ')
         if len(split_message) < 2:
             return 'ERRO-701\n'
 
         task_name = split_message[1]
-
+        # Garante o acesso unico a região crítica, deixando um acesso por vez
         with mutex:
             if task_name not in tasks:
                 return 'ERRO-404\n'
-
+            # Passa o tarefa para o dicionário do semaforo
             task_semaphore = task_semaphores[task_name]
 
         # Adquire o semáforo (bloqueia outros usuários)
@@ -91,32 +92,30 @@ def process_message(message, client_address):
 
         try:
             current_status = tasks[task_name]
-            if current_status == '200':
-                # Tarefa está no estado "INICIADA"
+            if current_status == '200':  # Aguardando
+                tasks[task_name] = '201'  # Iniciada
                 return 'PASS-201\n'
-            elif current_status == '201':
-                # Tarefa está no estado "PAUSADA"
-                tasks[task_name] = '200'
+            elif current_status == '202':  # Iniciada
+                tasks[task_name] = '201'  # Aguardando
                 return 'PASS-201\n'
             else:
-                # Tarefa não está em estado "INICIADA" ou "PAUSADA"
                 return 'ERRO-804\n'
         finally:
             # Libera o semáforo (permite que outros usuários acessem)
             task_semaphore.release()
 
-    # Comando: PAUSE_TASK
+    # Comando para pausar uma tarefa
     if message.startswith('PAUSE'):
         # Verifica se o cliente está logado
         if client_address not in logged_users:
             return 'ERRO-700\n'
-
+        # Verifica o tamanho da mensagem, retornando erro caso a mensagem seja menor que 2
         split_message = message.split(' ')
         if len(split_message) < 2:
             return 'ERRO-701\n'
 
         task_name = split_message[1]
-
+        # Garante o acesso unico a região crítica, deixando um acesso por vez
         with mutex:
             if task_name not in tasks:
                 return 'ERRO-404\n'
@@ -128,29 +127,29 @@ def process_message(message, client_address):
 
         try:
             current_status = tasks[task_name]
-            if current_status == '200':
-                # Tarefa está no estado "INICIADA"
-                tasks[task_name] = '201'
+            if current_status == '200':  # Aguardando
+                return 'ERRO-804\n'
+            elif current_status == '201':  # Iniciada
+                tasks[task_name] = '202'  # Pausada
                 return 'PASS-202\n'
             else:
-                # Tarefa não está em estado "INICIADA"
                 return 'ERRO-804\n'
         finally:
             # Libera o semáforo (permite que outros usuários acessem)
             task_semaphore.release()
 
-    # Comando: FINISH_TASK
+    # Comando para finalizar uma tarefa
     if message.startswith('FINISH'):
         # Verifica se o cliente está logado
         if client_address not in logged_users:
             return 'ERRO-700\n'
-
+        # Verifica o tamanho da mensagem, retornando erro caso a mensagem seja menor que 2
         split_message = message.split(' ')
         if len(split_message) < 2:
             return 'ERRO-701\n'
 
         task_name = split_message[1]
-
+        # Garante o acesso unico a região crítica, deixando um acesso por vez
         with mutex:
             if task_name not in tasks:
                 return 'ERRO-404\n'
@@ -162,22 +161,21 @@ def process_message(message, client_address):
 
         try:
             current_status = tasks[task_name]
-            if current_status == '200':
-                # Tarefa está no estado "INICIADA"
-                tasks[task_name] = '203'
-                return 'PASS-203\n'
-            else:
-                # Tarefa não está em estado "INICIADA"
+            if current_status == '202':  # Após pausada, não pode finalizar
                 return 'ERRO-804\n'
+            else:
+                tasks[task_name] = '203'  # Finalizada
+                return 'PASS-203\n'
         finally:
             # Libera o semáforo (permite que outros usuários acessem)
             task_semaphore.release()
 
-    # Comando: LIST_TASKS
+    # Comando para listar tarefas
     if message == 'LIST':
+        # Verifica se o cliente está logado
         if client_address not in logged_users:
             return 'ERRO-700\n'
-
+        # Garante o acesso unico a região crítica, deixando um acesso por vez
         with mutex:
             task_list = ''
             if tasks:
@@ -187,7 +185,7 @@ def process_message(message, client_address):
                 task_list = 'ERRO-501\n'
         return task_list
 
-    # Comando: REGISTER_USER
+    # Comando que registra o usuário
     if message.startswith('REG'):
         split_message = message.split(' ')
         if len(split_message) < 3:
@@ -203,7 +201,7 @@ def process_message(message, client_address):
             users[username] = password
         return 'PASS-213\n'
 
-    # Comando: LOGIN
+    # Comando que loga o usuário
     if message.startswith('LOG'):
         split_message = message.split(' ')
         if len(split_message) < 3:
@@ -211,7 +209,7 @@ def process_message(message, client_address):
 
         username = split_message[1]
         password = split_message[2]
-
+        # Garante o acesso unico a região crítica, deixando um acesso por vez
         with mutex:
             if username in users and users[username] == password:
                 logged_users[client_address] = username
@@ -219,7 +217,7 @@ def process_message(message, client_address):
 
         return 'ERRO-704\n'
 
-    # Comando: LOGOUT
+    # Comando que desloga o usuário
     if message == 'OUT':
         if client_address in logged_users:
             del logged_users[client_address]
@@ -257,6 +255,6 @@ def main():
         # Encerra o socket do servidor
         server_socket.close()
 
-
+# Verifica se o script está sendo executado de maneira adequada
 if __name__ == '__main__':
     main()
